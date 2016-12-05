@@ -2,38 +2,83 @@
 #   WIP Pokemon
 #
 # Commands:
-#   hubot poke - Show me a pokemon
+#   hubot poke - Spawn a pokemon
 #
 # Configuration:
 #   POKE_ROOMS - Space delimited list of rooms that will be overrun with pokemon.
 #
 
-Http = require './src/http'
 Utils = require './src/utils'
+Http = require './src/http/http'
+Rarity = require './src/rarity'
+Pokemon = require './src/models/pokemon'
+WildSpawner = require './src/wild/wild-spawner'
 
-ROBOT = null
 POKE_ROOMS = process.env.POKE_ROOMS.split(' ')
-POKE_MAX_ID = 151
 POKE_URL = 'https://pokeapi.co/api/v2'
 CACHE_DIR = '/tmp/pokemon'
 
-http = null
+module.exports = (robot) ->
+  http = new Http robot.logger, robot.http.bind(robot), CACHE_DIR
 
-module.exports = (_robot) ->
-  ROBOT = _robot
-  http = new Http ROBOT.logger, ROBOT.http.bind(ROBOT), CACHE_DIR
+  wildSpawner = new WildSpawner http, POKE_ROOMS, POKE_URL
+  wildSpawner.spawnPokemon()
 
-  ROBOT.respond /poke/i, (msg) ->
-    pokeId = Utils.selectRandomPokemonId POKE_MAX_ID
-    Utils.getPokemonById(http, POKE_URL, pokeId).then (poke) ->
-      console.log '------------------------------------------------'
-      console.log poke
-      console.log '------------------------------------------------'
-      ROBOT.messageRoom Utils.selectRandomRoom(POKE_ROOMS), """
-      name: #{poke.species.name}
-      shiny: #{poke.isShiny}
-      #{poke.sprites.front_default}
-      #{poke.sprites.back_default}
-      #{poke.sprites.front_shiny}
-      #{poke.sprites.back_shiny}
-      """
+  # robot.respond /poke/i, (msg) ->
+  #   poke = Rarity.selectPokemon()
+  #   http.getJSON("#{POKE_URL}/pokemon/#{poke.id}/").then (data) ->
+  #     pokemon = new Pokemon data
+  #     console.log '------------------------------------------------'
+  #     console.log data
+  #     console.log '------------------------------------------------'
+  #     room = Utils.selectRandomFromArray(POKE_ROOMS)
+  #     title = "A wild #{Utils.capitalize(pokemon.data.species.name)} has appeared!"
+  #     color = 'good'    if pokemon.isCommon()
+  #     color = 'warning' if pokemon.isUncommon()
+  #     color = 'danger'  if pokemon.isRare()
+  #     # something = robot.messageRoom room,
+  #     robot.adapter.client.web.chat.postMessage(room, "",
+  #       attachments: [
+  #         author_name: "Pokemon",
+  #         author_icon: "https://upload.wikimedia.org/wikipedia/en/3/39/Pokeball.PNG",
+  #         text: "Attempt to catch it with `catch #{pokemon.data.species.name}`!",
+  #         color: color,
+  #         fallback: title,
+  #         title: title,
+  #         # thumb_url: "http://guidesmedia.ign.com/guides/059687/images/blackwhite/pokemans_#{poke.id}.gif",
+  #         thumb_url: "http://i1265.photobucket.com/albums/jj514/Narcotic-Dementia/" +
+  #                    "All%20Pokemon%20Sprites%20Animated/Generation%201/#{pokemon.id}.gif",
+  #         fields: [
+  #           { title: 'Level', value: 15, short: true },
+  #           { title: 'Health', value: pokemon.hp, short: true }
+  #         ],
+  #         mrkdwn_in: ["text"]
+  #       ]
+  #     ).then (msg) ->
+  #       setTimeout ->
+  #         robot.adapter.client.web.chat.update msg.ts, msg.channel, "",
+  #           attachments: [
+  #             author_name: "Pokemon",
+  #             author_icon: "https://upload.wikimedia.org/wikipedia/en/3/39/Pokeball.PNG",
+  #             text: "*#{Utils.capitalize(pokemon.data.species.name)}* is in a battle!",
+  #             color: color,
+  #             thumb_url: "http://i1265.photobucket.com/albums/jj514/Narcotic-Dementia/" +
+  #                       "All%20Pokemon%20Sprites%20Animated/Generation%201/#{pokemon.id}.gif",
+  #             mrkdwn_in: ["text"]
+  #           ]
+  #       , 5000
+  #       setTimeout ->
+  #         robot.adapter.client.web.chat.update msg.ts, msg.channel, "",
+  #           attachments: [
+  #             author_name: "Pokemon",
+  #             author_icon: "https://upload.wikimedia.org/wikipedia/en/3/39/Pokeball.PNG",
+  #             text: "*#{Utils.capitalize(pokemon.data.species.name)}* ran away!",
+  #             color: color,
+  #             mrkdwn_in: ["text"]
+  #           ]
+  #       , 10000
+  #       setTimeout ->
+  #         robot.adapter.client.web.chat.delete msg.ts, msg.channel
+  #       , 15000
+  #   .catch (e) ->
+  #     console.error e
